@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TuringAtheneum | Multi-Tape Turing Machine Visualizer</title>
+  <meta name="description" content="An advanced interactive Multi-Tape Turing Machine simulator and visualizer. Explore computational theory with draggable state graphs, live tape views, and step-by-step execution traces.">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ===== MAIN APP LAYOUT ===== -->
+  <div class="app-layout" id="sim-view">
+
+    <!-- ===== LEFT SIDEBAR — Formal Definition ===== -->
+    <aside class="left-sidebar">
+      <div class="sidebar-header">
+        <div class="logo-inline">TuringAtheneum</div>
+      </div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab mode-tab-active" data-mode="presets">Presets</button>
+        <button class="mode-tab" data-mode="playground">Playground</button>
+      </div>
+
+      <div class="sidebar-scroll-wrapper">
+
+        <!-- Mode: Presets -->
+        <div class="mode-content" id="mode-presets">
+          <div class="sidebar-config" style="padding-bottom:10px; border-bottom:none">
+            <!-- Transition Function selector -->
+            <div class="config-group">
+              <label class="config-label" for="algo-select">Preset Algorithm</label>
+              <select class="config-select" id="algo-select">
+                <!-- Dynamically populated by app.js with optgroups -->
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode: Playground -->
+        <div class="mode-content hidden" id="mode-playground">
+          <div class="sidebar-config" style="padding-bottom:5px; border-bottom:none">
+            <!-- Tape count for playground -->
+            <div class="config-group">
+              <label class="config-label" for="playground-tape-count">Number of Tapes (k)</label>
+              <input class="config-input" id="playground-tape-count" type="number" min="1" max="10" step="1" value="1">
+            </div>
+
+            <!-- Transition Editor Panel -->
+            <div id="panel-editor" style="margin-top:0.5rem;">
+              <div class="editor-section">
+                <div class="editor-section-title">Add State</div>
+                <div class="editor-row">
+                  <input class="editor-input" id="new-state-name" type="text" placeholder="e.g. q1" spellcheck="false" style="width:30%">
+                  <input class="editor-input editor-input-wide" id="new-state-desc" type="text" placeholder="Description" spellcheck="false">
+                  <button class="editor-btn editor-btn-add" id="btn-add-state" title="Add State"><span class="material-symbols-outlined" style="font-size:16px">add</span></button>
+                </div>
+              </div>
+              <div class="editor-section">
+                <div class="editor-section-title">Add δ Rule</div>
+                <div class="editor-hint" id="editor-hint">Format for <span id="editor-tape-count">1</span>-tape: <code>δ(q0, a) = (q1, b, R)</code></div>
+                <div class="editor-row">
+                  <input class="editor-input editor-input-full" id="new-rule-input" type="text" placeholder="δ(q0, 0) = (q1, 1, R)" spellcheck="false">
+                  <button class="editor-btn editor-btn-add" id="btn-add-rule" title="Add Rule"><span class="material-symbols-outlined" style="font-size:16px">add</span></button>
+                </div>
+                <div class="editor-error hidden" id="editor-error"></div>
+              </div>
+              <div class="editor-section">
+                <div class="editor-section-title">Current δ Rules</div>
+                <div class="editor-rules-list" id="editor-rules-list" style="max-height:150px"><div class="editor-empty">No rules defined yet. Add δ rules above.</div></div>
+              </div>
+              <div class="editor-section">
+                <div class="editor-section-title">States (Q)</div>
+                <div class="editor-states-list" id="editor-states-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shared Tape Config -->
+        <div class="sidebar-config">
+          <div class="config-label" style="margin-bottom:0.8rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.4rem; color:#0f172a; font-weight: 700;">Tape Initialization</div>
+
+        <!-- Complexity Info Card (below algorithm dropdown) -->
+        <div class="complexity-card hidden" id="complexity-card">
+          <div class="complexity-card-summary" id="complexity-card-summary"></div>
+          <div class="complexity-card-benefit" id="complexity-card-benefit">
+            <span class="material-symbols-outlined" style="font-size:13px">bolt</span>
+            <span id="complexity-card-benefit-text"></span>
+          </div>
+        </div>
+
+        <!-- Tape count (for presets) -->
+        <div class="config-group" id="preset-tape-count-group">
+          <label class="config-label" for="tape-count">Number of Tapes (k)</label>
+          <input class="config-input" id="tape-count" type="number" min="1" step="1" value="2">
+        </div>
+
+        <!-- Guide Card -->
+        <div class="guide-card hidden" id="guide-card">
+          <div class="guide-card-title">
+            <span class="material-symbols-outlined" style="font-size:14px">menu_book</span>
+            How to Run
+          </div>
+          <div class="guide-card-text" id="guide-card-text"></div>
+        </div>
+
+        <!-- Dynamic tape input container (JS-generated) -->
+        <div id="dynamic-tape-inputs"></div>
+
+        <!-- Load button -->
+        <button class="btn-load" id="btn-load">
+          <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
+          Load &amp; Reset
+        </button>
+      </div>
+
+      <!-- Machine info -->
+      <div class="machine-info">
+        <div class="machine-info-title" id="machine-title">Palindrome Checker</div>
+        <div class="machine-info-desc" id="machine-desc">Checks if a binary string is a palindrome.</div>
+
+        <!-- Time Complexity + Efficiency Badge row -->
+        <div class="tc-row">
+          <div class="machine-info-tc" id="machine-tc">Time Complexity: O(n)</div>
+          <div class="efficiency-badge hidden" id="efficiency-badge">
+            <span class="material-symbols-outlined" style="font-size:13px">bolt</span>
+            <span id="efficiency-badge-text">Quadratic Speedup!</span>
+          </div>
+        </div>
+        <div class="tc-explanation" id="tc-explanation"></div>
+      </div>
+
+      <!-- Internal State (q) -->
+      <div class="state-display">
+        <div class="config-label">Internal State (q)</div>
+        <div class="state-current">
+          <span class="state-name" id="current-state-display">q0</span>
+          <span class="status-badge status-ready" id="machine-status">READY</span>
+        </div>
+        <div class="state-desc" id="state-description"></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="step-counter">0</div>
+          <div class="stat-label">Steps</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="state-counter">0</div>
+          <div class="stat-label">|Q|</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="tape-counter">0</div>
+          <div class="stat-label">Tapes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="transition-counter">0</div>
+          <div class="stat-label">|δ|</div>
+        </div>
+      </div>
+
+      <!-- Dynamic Analytics (Sandbox) -->
+      <div class="sandbox-analytics hidden" id="sandbox-analytics">
+        <div class="config-label">Dynamic Analytics</div>
+        <div class="analytics-row">
+          <span class="analytics-key">Input size (n):</span>
+          <span class="analytics-val" id="analytics-n">0</span>
+        </div>
+        <div class="analytics-row">
+          <span class="analytics-key">Steps taken:</span>
+          <span class="analytics-val" id="analytics-steps">0</span>
+        </div>
+        <div class="analytics-row">
+          <span class="analytics-key">Efficiency (steps/n):</span>
+          <span class="analytics-val" id="analytics-efficiency">—</span>
+        </div>
+        <div class="linz-citation" id="linz-citation">
+          <span class="material-symbols-outlined" style="font-size:13px">auto_stories</span>
+          <em>Linz, Thm 8.5:</em> "A k-tape Turing Machine can be simulated by a standard single-tape machine, but while a k-tape machine might operate in O(n) time, its single-tape equivalent may require O(n²) time."
+        </div>
+      </div>
+
+      <!-- Keyboard shortcuts -->
+      <div class="shortcuts-hint">
+        <div><span class="shortcut-key">Space</span> Play / Pause</div>
+        <div><span class="shortcut-key">→</span> Step forward</div>
+        <div><span class="shortcut-key">R</span> Reset machine</div>
+        <div><span class="shortcut-key">Scroll</span> Zoom graph</div>
+        <div><span class="shortcut-key">Drag</span> Move nodes</div>
+      </div>
+
+      <div class="left-sidebar-resize-handle" id="left-sidebar-resize-handle" title="Drag to resize"></div>
+
+      </div> <!-- /sidebar-scroll-wrapper -->
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+      <!-- Graph Visualization -->
+      <section class="graph-section">
+        <div class="graph-header">
+          <div>
+            <h1 class="graph-title">Transition Graph</h1>
+            <p class="graph-subtitle" id="graph-topology">Automaton Topology: Multi-Tape</p>
+          </div>
+          <div class="graph-controls">
+            <label class="learning-toggle" id="learning-toggle" title="When OFF, only δ functions for the current state are shown on the graph">
+              <input type="checkbox" id="learning-mode-cb" checked>
+              <span class="learning-toggle-slider"></span>
+              <span class="learning-toggle-label">Global Learning Mode</span>
+            </label>
+            <span class="graph-hint">
+              <span class="material-symbols-outlined" style="font-size:14px">pan_tool</span>
+              Drag nodes • Scroll to zoom
+            </span>
+          </div>
+        </div>
+        <div class="graph-canvas" id="graph-container"></div>
+      </section>
+
+      <!-- Tape Visualization -->
+      <section class="tape-section">
+        <div class="tape-section-header">
+          <h2 class="tape-section-title">Memory Tapes (Live)</h2>
+          <div class="tape-tracking">
+            <span class="tape-tracking-dot"></span>
+            <span>Head Tracking Active</span>
+          </div>
+        </div>
+
+        <div class="tape-node-banner tape-node-running" id="tape-node-banner" title="Current machine node">
+          <span class="tape-node-banner-dot"></span>
+          <span class="tape-node-banner-label">Current Node</span>
+          <strong class="tape-node-banner-value" id="current-node-display">q0</strong>
+        </div>
+
+        <div id="tape-container"></div>
+      </section>
+
+    </main>
+
+    <!-- ===== RIGHT SIDEBAR — Split View: Chart + Trace ===== -->
+    <aside class="right-sidebar" id="right-sidebar">
+
+      <div class="right-sidebar-resize-handle" id="right-sidebar-resize-handle" title="Drag to resize"></div>
+
+      <button class="sidebar-collapse-btn" id="btn-toggle-right-sidebar" title="Collapse/Expand Right Panel">
+        <span class="material-symbols-outlined" id="right-sidebar-collapse-icon">keyboard_double_arrow_right</span>
+      </button>
+
+      <!-- TOP: Persistent Efficiency Graph (40%) -->
+      <div class="sidebar-split-top">
+        <div class="analytics-chart-section">
+          <div class="analytics-chart-header">
+            <span class="material-symbols-outlined" style="font-size:14px">show_chart</span>
+            <span>Efficiency: n vs Steps</span>
+            <div class="analytics-chart-actions">
+              <button class="analytics-icon-btn" id="btn-download-json" title="Download Machine JSON">
+                <span class="material-symbols-outlined" style="font-size:15px">download</span>
+              </button>
+              <button class="analytics-icon-btn" id="btn-clear-history" title="Clear Run History">
+                <span class="material-symbols-outlined" style="font-size:15px">delete_sweep</span>
+              </button>
+            </div>
+          </div>
+          <div class="analytics-chart-box">
+            <svg id="analytics-chart-svg" width="100%" height="180" viewBox="0 0 300 180" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+          <div class="analytics-chart-legend" id="analytics-chart-legend">
+            <span class="chart-legend-item"><span class="chart-dot" style="background:#10b981"></span>Actual</span>
+            <span class="chart-legend-item"><span class="chart-dot" style="background:transparent;border:1.5px solid rgba(16,185,129,0.5)"></span>Live</span>
+            <span class="chart-legend-item chart-legend-fit" id="legend-fit-item"><span class="chart-dot" id="legend-fit-dot"></span><span id="legend-fit-label">—</span></span>
+          </div>
+          <div class="analytics-formula-display" id="analytics-formula-display"></div>
+          <div class="analytics-insight-box hidden" id="analytics-insight-box"></div>
+        </div>
+      </div>
+
+      <!-- BOTTOM: Tabbed Trace / δ Table (60%) -->
+      <div class="sidebar-split-bottom">
+        <div class="panel-tabs">
+          <button class="panel-tab panel-tab-active" data-tab="trace">
+            <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">history</span>
+            Execution Trace
+          </button>
+          <button class="panel-tab" data-tab="rules">
+            <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">table_chart</span>
+            δ Table
+          </button>
+        </div>
+
+        <!-- Execution Trace Panel -->
+        <div class="panel-content" id="panel-trace">
+          <div id="trace-entries">
+            <div class="trace-init">
+              <span class="material-symbols-outlined" style="font-size:16px;color:#10b981">play_circle</span>
+              <span>Ready to simulate. Press <strong>Step</strong> or <strong>Play</strong> to begin.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transition Rules Panel (δ Table) -->
+        <div class="panel-content hidden" id="panel-rules">
+          <table class="rule-table">
+            <thead>
+              <tr>
+                <th>δ Transition Function</th>
+              </tr>
+            </thead>
+            <tbody id="rule-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- ===== BOTTOM CONTROL BAR ===== -->
+  <footer class="control-bar">
+    <div class="control-left"></div>
+
+    <div class="control-center">
+      <button class="control-btn" id="btn-step-back" title="Step Back">
+        <span class="material-symbols-outlined">undo</span>
+        <span>Back</span>
+      </button>
+      <button class="control-btn" id="btn-reset" title="Reset (R)">
+        <span class="material-symbols-outlined">restart_alt</span>
+        <span>Reset</span>
+      </button>
+      <button class="control-btn" id="btn-step" title="Step (→)">
+        <span class="material-symbols-outlined">step_into</span>
+        <span>Step</span>
+      </button>
+      <button class="control-btn control-play" id="btn-play" title="Play (Space)">
+        <span class="material-symbols-outlined">play_arrow</span>
+        <span>Play</span>
+      </button>
+      <button class="control-btn control-disabled" id="btn-pause" title="Pause (Space)">
+        <span class="material-symbols-outlined">pause</span>
+        <span>Pause</span>
+      </button>
+      <button class="control-btn" id="btn-fast" title="Run to completion">
+        <span class="material-symbols-outlined">fast_forward</span>
+        <span>Fast</span>
+      </button>
+    </div>
+
+    <div class="control-right">
+      <div class="speed-control">
+        <span class="speed-label">Exec Speed</span>
+        <div class="speed-slider-container">
+          <input class="speed-slider" id="speed-slider" type="range" min="1" max="100" value="55">
+          <span class="speed-value" id="speed-value">500ms</span>
+        </div>
+      </div>
+      <button class="icon-btn material-symbols-outlined" id="btn-fullscreen" title="Fullscreen">fullscreen</button>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/presets.js?v=3"></script>
+  <script src="js/turing-engine.js?v=3"></script>
+  <script src="js/graph-viz.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+
+</body>
+</html>
