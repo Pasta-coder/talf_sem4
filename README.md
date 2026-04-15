@@ -4,7 +4,7 @@ TuringAtheneum is a web-based **Multi-Tape Turing Machine Visualizer** built usi
 
 ## University Submission Details
 - **Name:** Jayant Chauhan
-- **Student Roll Number:** `2024UCS1552
+- **Student Roll Number:** `2024UCS1552`
 - **Course Name:** TAFL
 
 ## Live Project
