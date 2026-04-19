@@ -8,7 +8,7 @@ TuringAtheneum is a web-based **Multi-Tape Turing Machine Visualizer** built usi
 - **Course Name:** TAFL
 
 ## Live Project
-- **Deployed URL:**
+- **Deployed URL:** https://pasta-coder.github.io/talf_sem4/
 
 ## Project Overview
 This project simulates a multi-tape Turing Machine in an interactive visual environment.
